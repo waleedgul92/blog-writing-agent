@@ -3,14 +3,14 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import List, Optional
 from langgraph.types import Send
-from langchain_openai import ChatOpenAI
+
 from langchain_core.messages import SystemMessage, HumanMessage
 from dotenv import load_dotenv
 from schemas import State, RouterDecision, EvidencePack, Plan, Task, EvidenceItem, GlobalImagePlan
+from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 load_dotenv()
-
-llm=ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+llm=ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=os.getenv("gemini_key"))
 
 ROUTER_SYSTEM = """You are a routing module for a technical blog planner.
 
@@ -144,7 +144,7 @@ ORCH_SYSTEM = """You are a senior technical writer and developer advocate.
 Produce a highly actionable outline for a technical blog post.
 
 Requirements:
-- 5-9 tasks, each with goal + 3-6 bullets + target_words.
+- 3-4 tasks, each with goal + 3-6 bullets + target_words.
 - Tags are flexible; do not force a fixed taxonomy.
 
 Grounding:
@@ -285,6 +285,7 @@ Rules:
 Return strictly GlobalImagePlan.
 """
 
+
 def decide_images(state: State) -> dict:
     planner = llm.with_structured_output(GlobalImagePlan)
     merged_md = state["merged_md"]
@@ -311,42 +312,33 @@ def decide_images(state: State) -> dict:
     }
 
 def _gemini_generate_image_bytes(prompt: str) -> bytes:
+    import os
     from google import genai
     from google.genai import types
+    from dotenv import load_dotenv
 
+    load_dotenv()
     api_key = os.environ.get("gemini_key")
+    
     if not api_key:
         raise RuntimeError("GOOGLE_API_KEY is not set.")
 
     client = genai.Client(api_key=api_key)
 
-    resp = client.models.generate_content(
-        model="gemini-2.5-flash-image",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_modalities=["IMAGE"],
-            safety_settings=[
-                types.SafetySetting(
-                    category="HARM_CATEGORY_DANGEROUS_CONTENT",
-                    threshold="BLOCK_ONLY_HIGH",
-                )
-            ],
-        ),
+    response = client.models.generate_images(
+        model='imagen-4.0-generate-001',
+        prompt=prompt,
+        config=types.GenerateImagesConfig(
+            number_of_images=1,
+            aspect_ratio="16:9",
+            person_generation="allow_adult"
+        )
     )
 
-    parts = getattr(resp, "parts", None)
-    if not parts and getattr(resp, "candidates", None):
-        parts = resp.candidates[0].content.parts
+    if not response.generated_images:
+        raise RuntimeError("No image content returned.")
 
-    if not parts:
-        raise RuntimeError("No image content returned (safety/quota/SDK change).")
-
-    for part in parts:
-        inline = getattr(part, "inline_data", None)
-        if inline and getattr(inline, "data", None):
-            return inline.data
-
-    raise RuntimeError("No inline image bytes found in response.")
+    return response.generated_images[0].image.image_bytes
 
 def _safe_slug(title: str) -> str:
     s = title.strip().lower()
@@ -383,4 +375,5 @@ def generate_and_place_images(state: State) -> dict:
 
     filename = f"{_safe_slug(plan.blog_title)}.md"
     Path(filename).write_text(md, encoding="utf-8")
+    
     return {"final": md}

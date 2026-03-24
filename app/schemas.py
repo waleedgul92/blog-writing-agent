@@ -1,12 +1,12 @@
 from __future__ import annotations    
 import operator
 from typing import TypedDict , List , Optional , Literal , Union, Annotated
-from pyndantic import BaseModel , Field
+from pydantic import BaseModel , Field
 
 
 class Task(BaseModel):
-    id=int 
-    title=str
+    id: int
+    title: str
     goal: str = Field(..., description="One sentence describing what the reader should do/understand.")
     bullets: List[str] = Field(..., min_length=3, max_length=6)
     target_words: int = Field(..., description="Target words (120–550).")
@@ -14,7 +14,6 @@ class Task(BaseModel):
     requires_research: bool = False
     requires_citations: bool = False
     requires_code: bool = False
-
 
 
 class Plan(BaseModel):
@@ -25,21 +24,21 @@ class Plan(BaseModel):
     constraints: List[str] = Field(default_factory=list)
     tasks: List[Task]
 
-
 class EvidenceItem(BaseModel):
-    title=str
-    url=str
-    published_at=Optional[str]=None
-    snippet=Optional[str]=None
-    source=Optional[str]=None
-
-
+    title: str
+    url: str
+    published_at: Optional[str] = None
+    snippet: Optional[str] = None
+    source: Optional[str] = None
 class RouterDecision(BaseModel):
-    need_research: bool
-    mode:Literal['closed_book', 'open_book','hybrid']
+    needs_research: bool
+    mode: Literal["closed_book", "hybrid", "open_book"]
     reason: str
     queries: List[str] = Field(default_factory=list)
-    max_results_per_query: int = Field(5)
+    max_results_per_query: int = Field(3)
+
+
+
 
 class EvidencePack(BaseModel):
     evidence: List[EvidenceItem] = Field(default_factory=list)

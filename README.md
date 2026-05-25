@@ -96,6 +96,10 @@ Then open your browser and navigate to **http://localhost:8501**
 > 💡 If your terminal throws a `gio: Operation not supported` error, simply open the URL manually in your browser.
 
 ---
+## Video
+[blog_writng.webm](https://github.com/user-attachments/assets/a1b13daf-247f-4038-990c-7f68ecb927e7)
+
+
 
 ## 📄 License
 
